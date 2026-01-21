@@ -1,7 +1,8 @@
-import React, {useEffect, useMemo, useState} from "react";
+import React, {useEffect, useState} from "react";
 import './App.css';
+import axios from "axios";
 
-const StockDashboard = () => {
+const StockDashboard = (props) => {
     const [stocks, setStocks] = useState([]);
     const [loading, setLoading] = useState(false);
     const [stockSearch, setStockSearch] = useState("");
@@ -9,44 +10,73 @@ const StockDashboard = () => {
     // רשימת תבניות שאנחנו מחפשים כדי לסמן "נרות היפוך"
     const reversalPatterns = ['Hammer', 'Doji', 'Engulfing', 'Inverted Hammer', 'היפוך'];
 
-    // פונקציה לטעינת הנתונים מה-JSON
-    const loadData = () => {
+    const loadStocksFromDB=()=>{
+        axios.get("http://localhost:5000/Load-From-DB?userid=" + props.data)
+            .then((res) => {
+                const normalizedData = res.data.map(stock => ({
+                    Ticker: stock.ticker, // שינוי מ-ticker ל-Ticker
+                    Price: stock.price,
+                    RSI: stock.rsi,
+                    Pattern: stock.pattern,
+                    Trend: stock.trend,
+                    timeStamp: stock.timeStape // תיקון שגיאת הכתיב מה-Java
+                }));
+                console.log("Success");
+                setStocks(normalizedData);
+                });
+    }
+    useEffect(() => {
+        loadStocksFromDB();
+
+    }, []);
+    const importFile = (event) => {
+        const file = event.target.files[0]; // קבלת הקובץ שנבחר
+        if (!file) return;
+        if (file.size === 0) {
+            alert("Empty file, do not upload");
+            return;
+        }
+
+        const reader = new FileReader();
         // טעינת קובץ הטקסט מהתיקייה הציבורית (public)
-        fetch('/Watchlist.txt')
-            .then(res => res.text()) // קוראים כטקסט פשוט ולא כ-JSON
-            .then(text => {
-                // 1. פיצול לפי פסיקים
-                const rawTickers = text.split(',');
+        reader.onload = (e) => {
+            const text = e.target.result;
+            if (!text || text.trim().length === 0) {
+                alert("No file uploaded");
+                return;
+            }
+            const rawTickers = text.split(/[,\n]+/);
 
-                // 2. ניקוי הטיקרים (הסרת שם הבורסה והפיכה לאובייקטים)
-                const formattedStocks = rawTickers.map(item => {
-                    // לוקחים רק את מה שאחרי הנקודתיים (למשל DIS מתוך NYSE:DIS)
+            const formattedStocks = rawTickers
+                .map(item => item.trim())
+                .filter(item => item !== "") // הסרת שורות ריקות
+                .map(item => {
                     const tickerOnly = item.includes(':') ? item.split(':').pop() : item;
-
                     return {
                         Ticker: tickerOnly.trim().toUpperCase(),
                         Price: null,
                         RSI: null,
                         Trend: '-',
                         Pattern: '-',
-                        timeStape:''
-                        // שאר השדות יתמלאו כשתלחץ על "הפעל סריקה"
+                        timeStape: new Date().toLocaleTimeString() // הוספת חותמת זמן לטעינה
                     };
                 });
 
-                // 3. הסרת כפילויות (אם יש) ועדכון ה-State
-                const uniqueStocks = Array.from(new Set(formattedStocks.map(s => s.Ticker)))
-                    .map(ticker => formattedStocks.find(s => s.Ticker === ticker));
+            if (formattedStocks.length === 0) {
+                alert("לא נמצאו טיקרים תקינים בקובץ.");
+                return;
+            }
 
-                setStocks(uniqueStocks);
-                console.log(`Loaded ${uniqueStocks.length} tickers from text file.`);
-            })
-            .catch(err => console.error("Error loading text file:", err));
+            // הסרת כפילויות ועדכון ה-State
+            const uniqueStocks = Array.from(new Set(formattedStocks.map(s => s.Ticker)))
+                .map(ticker => formattedStocks.find(s => s.Ticker === ticker));
+
+            setStocks(uniqueStocks);
+            console.log(`Successfully imported ${uniqueStocks.length} stocks from ${file.name}`);
+        };
+
+        reader.readAsText(file); // קריאת הקובץ כטקסט
     };
-
-    useEffect(() => {
-        loadData();
-    }, []);
     const isScannedToday = (timestamp) => {
         const scanDate = new Date(timestamp);
         const today = new Date();
@@ -96,6 +126,12 @@ const StockDashboard = () => {
     };
     const [sortConfig, setSortConfig] = useState({ key: 'Ticker', direction: 'asc' });
 
+    const savetoDB = () => {
+        const tickersList = stocks.map(s => s.Ticker);
+        // שליחה אחת בלבד של כל הרשימה
+        axios.get("http://localhost:5000/save-to-DB?ticks=" + tickersList + "&userid=" + props.data)
+            .then((res) => console.log("Success"));
+    }
     const requestSort = (key) => {
         let direction = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -174,8 +210,21 @@ const StockDashboard = () => {
                     >
                         {loading ? "⌛ סורק נתונים..." : "🚀 הפעל סריקה עכשיו"}
                     </button>
+                        <label htmlFor="file-upload" className="custom-file-upload">
+                           Import list
+                        </label>
+                        <input
+                            id="file-upload"
+                            type="file"
+                            accept=".txt,.csv" // הגבלה לסוגי קבצים רלוונטיים
+                            onChange={importFile}
+                        />
+                        <button className="save-to-base"
+                                onClick={savetoDB}
+                        >Save to the Database</button>
 
                     </div>
+
                 </header>
 
                 <div className="table-wrapper">
