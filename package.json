@@ -13,6 +13,7 @@
     "@mathieuc/tradingview": "^3.5.2",
     "cors": "^2.8.5",
     "express": "^5.2.1",
+    "js-cookie": "^3.0.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "yahoo-finance2": "^3.11.2"

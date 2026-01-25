@@ -1,30 +1,50 @@
 import React, {useEffect, useState} from "react";
 import './App.css';
 import axios from "axios";
+import Cookies from "js-cookie";
 
-const StockDashboard = (props) => {
+const StockDashboard = () => {
     const [stocks, setStocks] = useState([]);
     const [loading, setLoading] = useState(false);
     const [stockSearch, setStockSearch] = useState("");
     const [addStock, setAddStock] = useState("");
     // רשימת תבניות שאנחנו מחפשים כדי לסמן "נרות היפוך"
     const reversalPatterns = ['Hammer', 'Doji', 'Engulfing', 'Inverted Hammer', 'היפוך'];
+    const [lastTimeUpdate, setLastTimeUpdate] = useState(Infinity);
+    const token = Cookies.get("token");
+    const loadStocksFromDB = () => {
+        axios.get("http://localhost:5000/Load-From-DB", {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        }).then((res) => {
+            console.log(res.data.stocks);
+            let minTimeFound = Infinity;
+            const normalizedData = res.data.stocks.map(stock => {
+                const currentTime = new Date(stock.timeStape);
+                if (currentTime < minTimeFound) {
+                    minTimeFound = currentTime;
 
-    const loadStocksFromDB=()=>{
-        axios.get("http://localhost:5000/Load-From-DB?userid=" + props.data)
-            .then((res) => {
-                const normalizedData = res.data.map(stock => ({
-                    Ticker: stock.ticker, // שינוי מ-ticker ל-Ticker
+                }
+                return {
+                    Ticker: stock.ticker,
                     Price: stock.price,
                     RSI: stock.rsi,
                     Pattern: stock.pattern,
+                    SMA50: stock.sma50,
+                    SMA150: stock.sma150,
                     Trend: stock.trend,
-                    timeStamp: stock.timeStape // תיקון שגיאת הכתיב מה-Java
-                }));
-                console.log("Success");
-                setStocks(normalizedData);
-                });
+                    timeStamp: stock.timeStape,
+                }
+
+            });
+            setLastTimeUpdate(minTimeFound);
+            console.log("Success");
+            setStocks(normalizedData);
+        })
     }
+
+
     useEffect(() => {
         loadStocksFromDB();
 
@@ -96,13 +116,14 @@ const StockDashboard = (props) => {
             if (tickersToScan.length === 0) {
                 alert("כל המניות כבר מעודכנות להיום!");
                 setLoading(false);
+                setLastTimeUpdate(Date.now)
                 return;
             }
 
             const response = await fetch('http://localhost:4000/api/scan-bulk', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tickers: tickersToScan }),
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({tickers: tickersToScan}),
             });
             const result = await response.json();
 
@@ -115,7 +136,7 @@ const StockDashboard = (props) => {
                     );
 
                     return updatedData
-                        ? { ...updatedData, timeStamp: Date.now() }
+                        ? {...updatedData, timeStamp: Date.now()}
                         : oldStock;
                 }));
             }
@@ -124,43 +145,61 @@ const StockDashboard = (props) => {
         }
         setLoading(false);
     };
-    const [sortConfig, setSortConfig] = useState({ key: 'Ticker', direction: 'asc' });
+    const [sortConfig, setSortConfig] = useState({key: 'Ticker', direction: 'asc'});
 
     const savetoDB = () => {
-        const tickersList = stocks.map(s => s.Ticker);
-        // שליחה אחת בלבד של כל הרשימה
-        axios.get("http://localhost:5000/save-to-DB?ticks=" + tickersList + "&userid=" + props.data)
-            .then((res) => console.log("Success"));
+        const stocksData = encodeURIComponent(JSON.stringify(stocks));
+        axios.get("http://localhost:5000/save-to-DB?ticks=" + stocksData,{
+        headers: {'Authorization': `Bearer ${token}`}
+        })
+            .then((res) => {
+                if(res.data.status){
+                    alert("All Good");
+                }else {
+                    alert("Not Good");
+                }
+
+            });
     }
     const requestSort = (key) => {
         let direction = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
             direction = 'desc';
         }
-        setSortConfig({ key, direction });
+        setSortConfig({key, direction});
     };
 
     const removeStock = (item) => {
-        setStocks(prevStocks => prevStocks.filter(stock => stock.Ticker !== item.Ticker));
+        axios.get("http://localhost:5000/Remove-Stock?Ticker=" + item.Ticker,{
+            headers: {'Authorization': `Bearer ${token}`}
+        })
+            .then((res) => {
+                console.log(res.data);
+                setStocks(prevStocks => prevStocks.filter(stock => stock.Ticker !== item.Ticker));
+
+            })
     }
     const addStockFun = () => {
         if (stocks.some(s => s.Ticker === addStock)) {
             alert("המניה כבר קיימת ברשימה");
-            return;
+            setAddStock("");
+        } else {
+            const newStockEntry = {
+                Ticker: addStock,
+                Price: null,
+                RSI: null,
+                Trend: '-',
+                Pattern: '-',
+                SMA50: null,
+                SMA150: null,
+                "Vol Ratio": '-',
+                Reasoning: 'ניתוח רגיל',
+                "Pattern Info": 'Daily Analysis'
+            };
+            setStocks(prevStocks => [...prevStocks, newStockEntry]);
         }
-        const newStockEntry = {
-            Ticker: addStock,
-            Price: null,
-            RSI: null,
-            Trend: '-',
-            Pattern: '-',
-            SMA50: null,
-            SMA150: null,
-            "Vol Ratio": '-',
-            Reasoning: 'ניתוח רגיל',
-            "Pattern Info": 'Daily Analysis'
-        };
-        setStocks(prevStocks => [...prevStocks, newStockEntry]);
+        setAddStock("");
+
     }
     const sortedStocks = React.useMemo(() => {
         let sortableStocks = [...stocks];
@@ -188,30 +227,31 @@ const StockDashboard = (props) => {
         <>
 
             <div className="dashboard-container">
-
+                <button></button>
                 <header className="dashboard-header">
                     <h1>Market Scanner Pro</h1>
+                    <p>Last time updated: {new Date(lastTimeUpdate).toLocaleDateString('he-IL')}</p>
                     <div className="actions">
-                    <input className="addStock" placeholder={"Enter stock to add"}
-                           onChange={(e) =>setAddStock(e.target.value)}/>
+                        <input className="addStock" placeholder={"Enter stock to add"}
+                               value={addStock} onChange={(e) => setAddStock(e.target.value)}/>
                         <button
-                            onClick={()=>addStockFun()}
+                            onClick={() => addStockFun()}
                             className="add-button"
                             disabled={loading}
                         >
                             {"add Stock"}
                         </button>
                         <input className="stockSearch" placeholder={"Enter stock to search"}
-                               onChange={(e) =>setStockSearch(e.target.value.toUpperCase)}/>
-                    <button
-                        onClick={()=> handleRunScanner()}
-                        className="scan-button"
-                        disabled={loading}
-                    >
-                        {loading ? "⌛ סורק נתונים..." : "🚀 הפעל סריקה עכשיו"}
-                    </button>
+                               onChange={(e) => setStockSearch(e.target.value.toUpperCase)}/>
+                        <button
+                            onClick={() => handleRunScanner()}
+                            className="scan-button"
+                            disabled={loading}
+                        >
+                            {loading ? "⌛ סורק נתונים..." : "🚀 הפעל סריקה עכשיו"}
+                        </button>
                         <label htmlFor="file-upload" className="custom-file-upload">
-                           Import list
+                            Import list
                         </label>
                         <input
                             id="file-upload"
@@ -221,7 +261,8 @@ const StockDashboard = (props) => {
                         />
                         <button className="save-to-base"
                                 onClick={savetoDB}
-                        >Save to the Database</button>
+                        >Save to the Database
+                        </button>
 
                     </div>
 
@@ -285,7 +326,7 @@ const StockDashboard = (props) => {
                                     <td>{stock.Resistance}</td>
                                     <td>{stock.Expectation}</td>
                                     <td className="pattern-info-cell">{stock["Pattern Info"]}</td>
-                                    <td onClick={()=>removeStock(stock)}>X</td>
+                                    <td onClick={() => removeStock(stock)}>X</td>
                                 </tr>
                             );
                         })}
@@ -293,8 +334,8 @@ const StockDashboard = (props) => {
                     </table>
                 </div>
             </div>
-            </>
-            );
-            };
+        </>
+    );
+};
 
 export default StockDashboard;

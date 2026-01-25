@@ -1,6 +1,7 @@
 import './App.css'
-import React from 'react'
+import React, {useEffect} from 'react'
 import axios from "axios";
+import Cookies from "js-cookie";
 
 import StockDashboard from "./StockDashboard.jsx";
 
@@ -12,13 +13,43 @@ function App() {
     const[password, setPassword] = React.useState("");
     const[errorCode, seterrorCode] = React.useState(0);
     const[loggedIn, setLoggedIn] = React.useState(false);
-    const [userloginId,setUserloginId] = React.useState(0);
     const ERROR_MESSAGES= {0:"All good",
         1:"Missing information",
         2:"Password too short",
         3:"Email in the wrong format.",
         4:"Phone in the wrong format.",
     5:"UserName TAKEN"};
+    const [loading, setLoading] = React.useState(true); // מצב המתנה לבדיקת העוגייה
+    useEffect(() => {
+        // 1. קריאת העוגייה (get ולא set)
+        const token = Cookies.get("token");
+        console.log(token);
+        if (token) {
+            axios.get("http://localhost:5000/check-session", { withCredentials: true })
+                .then(res => {
+                    console.log(res);
+                    if (res.data!=null && res.data.status) {
+                        setLoggedIn(true);
+                    } else {
+                        // אם השרת אמר שהטוקן לא תקין, מנקים אותו
+                        Cookies.remove("token");
+                        setLoggedIn(false);
+                    }
+                })
+                .catch(() => {
+                    setLoggedIn(false);
+                })
+                .finally(() => {
+                    setLoading(false); // עדכון אסינכרוני - בטוח לשימוש
+                });
+        } else {
+            // אין טוקן - עוברים למסך לוגין
+            setLoading(false);
+        }
+    }, []);
+    if (loading) {
+        return <div>בודק חיבור...</div>;
+    }
     const Register=()=>{
         if(userName.length===0 || userEmail.length===0||password.length===0||userPhone.length===0){
             seterrorCode(1);
@@ -55,21 +86,23 @@ function App() {
             seterrorCode(2);
             return;
         }
-        axios.get("http://localhost:5000/Login?username="+userName+"&password="+password).then((res)=>{
+        axios.get(`http://localhost:5000/Login?username=${userName}&password=${password}`, {
+            withCredentials: true // חובה לעטוף בסוגריים מסולסלים
+        })
+            .then((res) => {
             if(res.data!==0) {
                 cleanAll();
+                const t = res.data.token;
+                Cookies.set("token", t, { expires: 1 });
+
                 setLoggedIn(true);
-                console.log(res.data);
-                setUserloginId(res.data);
+                // console.log(res.data);
             }else{
                 seterrorCode(3);
-                console.log(res.data);
+                // console.log(res.data);
 
             }
         })
-    }
-    if(loggedIn){
-        return <StockDashboard data={userloginId} />; // הקומפוננטה של הפרויקט שלך
     }
     function cleanAll(){
         seterrorCode(0);
@@ -79,7 +112,10 @@ function App() {
         setPassword("");
 
     }
-    return (
+    if(loggedIn){
+        return <StockDashboard/>;
+    }
+        return (
         <>Welcome to the StockWatcher Site
             {!statusRegister ? (
                 <div>
