@@ -2,6 +2,8 @@ import React, {useEffect, useState} from "react";
 import './App.css';
 import axios from "axios";
 import Cookies from "js-cookie";
+import {useNavigate} from "react-router-dom";
+import StockRow from "./StockRow";
 
 const StockDashboard = () => {
     const [stocks, setStocks] = useState([]);
@@ -18,7 +20,6 @@ const StockDashboard = () => {
                 'Authorization': `Bearer ${token}`
             }
         }).then((res) => {
-            console.log(res.data.stocks);
             let minTimeFound = Infinity;
             const normalizedData = res.data.stocks.map(stock => {
                 const currentTime = new Date(stock.timeStape);
@@ -34,12 +35,15 @@ const StockDashboard = () => {
                     SMA50: stock.sma50,
                     SMA150: stock.sma150,
                     Trend: stock.trend,
+                    Reasoning: stock.Reasoning,
+                    Reasistance:stock.Resistance,
+                    Expectation: stock.Expectation,
+                    "Pattern Info": stock["Pattern Info"],
                     timeStamp: stock.timeStape,
                 }
 
             });
             setLastTimeUpdate(minTimeFound);
-            console.log("Success");
             setStocks(normalizedData);
         })
     }
@@ -78,6 +82,12 @@ const StockDashboard = () => {
                         RSI: null,
                         Trend: '-',
                         Pattern: '-',
+                        SMA50: 0,
+                        SMA150: 0,
+                        Reasoning: "-",
+                        Reasistance:"-",
+                        Expectation: "-",
+                        "Pattern Info": "-",
                         timeStape: new Date().toLocaleTimeString() // הוספת חותמת זמן לטעינה
                     };
                 });
@@ -97,6 +107,8 @@ const StockDashboard = () => {
 
         reader.readAsText(file); // קריאת הקובץ כטקסט
     };
+    const navigate = useNavigate();
+
     const isScannedToday = (timestamp) => {
         const scanDate = new Date(timestamp);
         const today = new Date();
@@ -148,9 +160,21 @@ const StockDashboard = () => {
     const [sortConfig, setSortConfig] = useState({key: 'Ticker', direction: 'asc'});
 
     const savetoDB = () => {
-        const stocksData = encodeURIComponent(JSON.stringify(stocks));
-        axios.get("http://localhost:5000/save-to-DB?ticks=" + stocksData,{
-        headers: {'Authorization': `Bearer ${token}`}
+        console.log(stocks)
+        const cleanStocks = stocks.filter(stock =>
+            stock.RSI !== null &&
+            stock.RSI !== undefined &&
+            stock.RSI !== 0.0 &&
+            stock.Price > 0
+        );
+        setStocks(cleanStocks);
+        console.log(stocks);
+        const payload = { ticks: cleanStocks };
+        axios.post("http://localhost:5000/save-to-DB", payload, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            withCredentials: true // חובה כדי שהשרת יזהה את הסשן שלך
         })
             .then((res) => {
                 if(res.data.status){
@@ -227,7 +251,11 @@ const StockDashboard = () => {
         <>
 
             <div className="dashboard-container">
-                <button></button>
+                <button  onClick={()=>{
+                    Cookies.remove("token");
+                    navigate("/Form");
+
+                }}> Log out</button>
                 <header className="dashboard-header">
                     <h1>Market Scanner Pro</h1>
                     <p>Last time updated: {new Date(lastTimeUpdate).toLocaleDateString('he-IL')}</p>
@@ -242,7 +270,7 @@ const StockDashboard = () => {
                             {"add Stock"}
                         </button>
                         <input className="stockSearch" placeholder={"Enter stock to search"}
-                               onChange={(e) => setStockSearch(e.target.value.toUpperCase)}/>
+                               onChange={(e) => setStockSearch(e.target.value.toUpperCase())}/>
                         <button
                             onClick={() => handleRunScanner()}
                             className="scan-button"
@@ -289,47 +317,14 @@ const StockDashboard = () => {
                         </tr>
                         </thead>
                         <tbody>
-
-                        {sortedStocks.map((stock, index) => {
-                            // לוגיקה משופרת: Buy Setup אם המחיר מעל שני הממוצעים וה-RSI לא גבוה מדי
-                            const isBuySetup = stock.Price > stock.SMA50 && stock.Price > stock.SMA150 && stock.RSI < 60;
-                            const reason = isBuySetup ? "STRONG BUY" : "ניתוח רגיל";
-
-                            const isReversal = reversalPatterns.some(p =>
-                                (stock.Pattern && stock.Pattern.includes(p)) ||
-                                (stock["Pattern Info"] && stock["Pattern Info"].includes("היפוך"))
-                            );
-
-                            return (
-                                <tr key={stock.Ticker || index} className={isReversal ? 'reversal-highlight' : ''}>
-                                    <td className="ticker-name">{stock.Ticker}</td>
-                                    <td>${stock.Price?.toFixed(2)}</td>
-                                    <td>{stock.RSI?.toFixed(2)}</td>
-                                    <td>{stock.Pattern}</td>
-                                    <td className={stock.Trend === 'Bearish' ? 'trend-bearish' : 'trend-bullish'}>
-                                        {stock.Trend}
-                                    </td>
-                                    <td>{stock.SMA50 ? `$${stock.SMA50.toFixed(2)}` : '-'}</td>
-                                    <td>{stock.SMA150 ? `$${stock.SMA150.toFixed(2)}` : '-'}</td>
-                                    <td style={{color: '#38bdf8', fontWeight: 'bold'}}>
-                                        {stock.Price ? `$${(stock.Price * 1.015).toFixed(2)}` : '-'}
-                                    </td>
-                                    <td style={{color: '#f87171', fontWeight: 'bold'}}>
-                                        {stock.Price ? `$${(stock.Price * 0.95).toFixed(2)}` : '-'}
-                                    </td>
-                                    <td>
-                    <span className={`action-badge ${isBuySetup ? 'action-buy' : 'action-wait'}`}>
-                        {reason}
-                    </span>
-                                    </td>
-                                    <td>{stock.Reasoning}</td>
-                                    <td>{stock.Resistance}</td>
-                                    <td>{stock.Expectation}</td>
-                                    <td className="pattern-info-cell">{stock["Pattern Info"]}</td>
-                                    <td onClick={() => removeStock(stock)}>X</td>
-                                </tr>
-                            );
-                        })}
+                        {sortedStocks.map((stock, index) => (
+                            <StockRow
+                                key={stock.Ticker + index}
+                                stock={stock}
+                                index={index}
+                                onRemove={removeStock}
+                            />
+                        ))}
                         </tbody>
                     </table>
                 </div>
