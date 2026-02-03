@@ -31,7 +31,7 @@ function App() {
         // 1. קריאת העוגייה (get ולא set)
         const token = Cookies.get("token");
         if (token) {
-            axios.get("http://localhost:5000/check-session", { withCredentials: true })
+            axios.get("https://stock-scanner-backend-pt4o.onrender.com/check-session", { withCredentials: true })
                 .then(res => {
                     console.log(res);
                     if (res.data!=null && res.data.status) {
@@ -73,7 +73,7 @@ function App() {
             seterrorCode(4);
             return;
         }
-        axios.get("http://localhost:5000/Register?username="+userName+"&password="+password+"&email="+userEmail+"&phone="+userPhone).then((res)=>{
+        axios.get("https://stock-scanner-backend-pt4o.onrender.com/Register?username="+userName+"&password="+password+"&email="+userEmail+"&phone="+userPhone).then((res)=>{
             if(res.data) {
                 cleanAll();
                 setStatusRegister(true);
@@ -92,7 +92,7 @@ function App() {
             seterrorCode(2);
             return;
         }
-        axios.get(`http://localhost:5000/Login?username=${userName}&password=${password}`, {
+        axios.get(`https://stock-scanner-backend-pt4o.onrender.com/Login?username=${userName}&password=${password}`, {
             withCredentials: true // חובה לעטוף בסוגריים מסולסלים
         })
             .then((res) => {

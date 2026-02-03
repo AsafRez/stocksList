@@ -14,7 +14,7 @@ const StockDashboard = () => {
     const [lastTimeUpdate, setLastTimeUpdate] = useState(Infinity);
     const token = Cookies.get("token");
     const loadStocksFromDB = () => {
-        axios.get("http://localhost:5000/Load-From-DB", {
+        axios.get("https://stock-scanner-backend-pt4o.onrender.com/Load-From-DB", {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -130,7 +130,7 @@ const StockDashboard = () => {
                 return;
             }
 
-            const response = await fetch('http://localhost:4000/api/scan-bulk', {
+            const response = await fetch('https://stock-scanner-proxy.onrender.com/api/scan-bulk', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({tickers: tickersToScan, interval:{time}}),
@@ -167,7 +167,7 @@ const StockDashboard = () => {
         setStocks(cleanStocks);
         const payload = { ticks: cleanStocks,interval:{time} };
         console.log(payload);
-        axios.post("http://localhost:5000/save-to-DB", payload, {
+        axios.post("https://stock-scanner-backend-pt4o.onrender.com/save-to-DB", payload, {
             headers: {
                 'Authorization': `Bearer ${token}`
             },
@@ -191,7 +191,7 @@ const StockDashboard = () => {
     };
 
     const removeStock = (item) => {
-        axios.get("http://localhost:5000/Remove-Stock?Ticker=" + item.Ticker,{
+        axios.get("https://stock-scanner-backend-pt4o.onrender.com/Remove-Stock?Ticker=" + item.Ticker,{
             headers: {'Authorization': `Bearer ${token}`}
         })
             .then((res) => {
