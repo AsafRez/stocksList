@@ -6,7 +6,7 @@ import { Routes, Route ,useNavigate} from "react-router-dom";
 
 import StockDashboard from "./StockDashboard.jsx";
 
-function App() {
+function Form() {
     const [statusRegister, setStatusRegister] = React.useState(false);
     const[userName, setUserName] = React.useState("");
     const[userEmail, setUserEmail] = React.useState("");
@@ -168,4 +168,4 @@ function App() {
     )
 }
 
-export default App
+export default Form;
