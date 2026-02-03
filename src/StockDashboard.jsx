@@ -10,8 +10,7 @@ const StockDashboard = () => {
     const [loading, setLoading] = useState(false);
     const [stockSearch, setStockSearch] = useState("");
     const [addStock, setAddStock] = useState("");
-    // רשימת תבניות שאנחנו מחפשים כדי לסמן "נרות היפוך"
-    const reversalPatterns = ['Hammer', 'Doji', 'Engulfing', 'Inverted Hammer', 'היפוך'];
+    const[time, setTime] = useState("d");
     const [lastTimeUpdate, setLastTimeUpdate] = useState(Infinity);
     const token = Cookies.get("token");
     const loadStocksFromDB = () => {
@@ -22,7 +21,7 @@ const StockDashboard = () => {
         }).then((res) => {
             let minTimeFound = Infinity;
             const normalizedData = res.data.stocks.map(stock => {
-                const currentTime = new Date(stock.timeStape);
+                const currentTime = new Date(stock.timeStamp);
                 if (currentTime < minTimeFound) {
                     minTimeFound = currentTime;
 
@@ -121,7 +120,6 @@ const StockDashboard = () => {
     const handleRunScanner = async () => {
         setLoading(true);
         try {
-            console.log(isScannedToday(stocks[0]))
             const tickersToScan = stocks
                 .filter(s => !isScannedToday(s.timeStamp))
                 .map(s => s.Ticker);
@@ -135,7 +133,7 @@ const StockDashboard = () => {
             const response = await fetch('http://localhost:4000/api/scan-bulk', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({tickers: tickersToScan}),
+                body: JSON.stringify({tickers: tickersToScan, interval:{time}}),
             });
             const result = await response.json();
 
@@ -160,7 +158,6 @@ const StockDashboard = () => {
     const [sortConfig, setSortConfig] = useState({key: 'Ticker', direction: 'asc'});
 
     const savetoDB = () => {
-        console.log(stocks)
         const cleanStocks = stocks.filter(stock =>
             stock.RSI !== null &&
             stock.RSI !== undefined &&
@@ -168,8 +165,8 @@ const StockDashboard = () => {
             stock.Price > 0
         );
         setStocks(cleanStocks);
-        console.log(stocks);
-        const payload = { ticks: cleanStocks };
+        const payload = { ticks: cleanStocks,interval:{time} };
+        console.log(payload);
         axios.post("http://localhost:5000/save-to-DB", payload, {
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -198,7 +195,6 @@ const StockDashboard = () => {
             headers: {'Authorization': `Bearer ${token}`}
         })
             .then((res) => {
-                console.log(res.data);
                 setStocks(prevStocks => prevStocks.filter(stock => stock.Ticker !== item.Ticker));
 
             })
@@ -216,11 +212,11 @@ const StockDashboard = () => {
                 Pattern: '-',
                 SMA50: null,
                 SMA150: null,
-                "Vol Ratio": '-',
+                Vol: '-',
                 Reasoning: 'ניתוח רגיל',
-                "Pattern Info": 'Daily Analysis'
             };
             setStocks(prevStocks => [...prevStocks, newStockEntry]);
+            console.log(stocks);
         }
         setAddStock("");
 
@@ -291,7 +287,9 @@ const StockDashboard = () => {
                                 onClick={savetoDB}
                         >Save to the Database
                         </button>
-
+                        <label className="interval-wrapper">
+                            Interval of search: {time}<input type={"checkbox"} placeholder={time} checked={time==="w"} onChange={(e)=>time==="w" ? (setTime("d")): setTime("w")}/>
+                        </label>
                     </div>
 
                 </header>
@@ -313,7 +311,7 @@ const StockDashboard = () => {
                             <th onClick={() => requestSort('Reason')}>Reasoning</th>
                             <th onClick={() => requestSort("Resistance")}>Resistance</th>
                             <th onClick={() => requestSort("Expectation")}>Expectation</th>
-                            <th onClick={() => requestSort("Pattern Info")}>Pattern Info</th>
+                            <th onClick={() => requestSort("Vol")}>Vol</th>
                         </tr>
                         </thead>
                         <tbody>

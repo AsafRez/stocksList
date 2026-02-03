@@ -21,12 +21,15 @@ function App() {
         4:"Phone in the wrong format.",
         5:"UserName TAKEN"};
     const navigate = useNavigate();
-
     const [loading, setLoading] = React.useState(true); // מצב המתנה לבדיקת העוגייה
+    useEffect(()=>{
+        if(loggedIn) {
+            navigate("/StockDashboard");
+        }
+    }, [loggedIn,navigate]);
     useEffect(() => {
         // 1. קריאת העוגייה (get ולא set)
         const token = Cookies.get("token");
-        console.log(token);
         if (token) {
             axios.get("http://localhost:5000/check-session", { withCredentials: true })
                 .then(res => {
@@ -114,9 +117,6 @@ function App() {
         setUserPhone("");
         setPassword("");
 
-    }
-    if(loggedIn){
-        navigate("/StockDashboard");
     }
     return (
         <>Welcome to the StockWatcher Site

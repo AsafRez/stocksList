@@ -13,6 +13,7 @@ body {
     padding: 20px;
     min-height: 100vh;
     font-family: 'Inter', system-ui, sans-serif;
+
 }
 
 h1 {
@@ -42,13 +43,22 @@ h1 {
     background-color: #0b1120;
     min-height: 80px;
 }
-
-actions{
+.actions {
     display: flex;
-    flex-wrap: wrap; /* מאפשר לכפתורים ול-Inputs להסתדר בנפרד */
+    justify-content: flex-start; /* דוחף את כל הכפתורים והלייבלים שמאלה, אחד ליד השני */
+    gap: 15px;                   /* המרווח בין כל כפתור/אינפוט בשורה */
     align-items: center;
-    gap: 15px;
-    justify-content: center;
+}
+.interval-wrapper {
+    display: inline-flex;  /* גורם ללייבל לתפוס רק את המקום שהוא צריך */
+    align-items: center;   /* מיישר את הריבוע לאמצע גובה הטקסט */
+    gap: 5px;             /* שולט במרווח המדויק - שנה ל-2px אם אתה רוצה ממש צמוד */
+    cursor: pointer;
+    width: fit-content;    /* מבטיח שהוא לא יתפרס ל-100% רוחב */
+}
+
+.interval-wrapper input {
+    margin: 0;             /* מבטל מרווחים שהדפדפן מוסיף אוטומטית ל-Checkbox */
 }
 .actions input{
     background: transparent;
@@ -59,7 +69,19 @@ actions{
     outline: none;
     min-width: 150px; /* רוחב מינימלי למניעת התכווצות יתר */
     flex: 1;
-
+}
+.actions label {
+    display: flex;
+    align-items: center;
+    gap: 8px;              /* המרווח הספציפי בין המילים לתיבת ה-V */
+    cursor: pointer;       /* גורם לעכבר להפוך ליד כשעוברים על הטקסט */
+    white-space: nowrap;   /* מונע מהטקסט לרדת שורה באמצע */
+}
+.actions input[type="checkbox"] {
+    min-width: auto;
+    flex: none;
+    width: auto;
+    cursor: pointer;
 }
 .actions button {
     background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%);

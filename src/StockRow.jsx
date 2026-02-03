@@ -34,7 +34,7 @@ const StockRow = ({ stock, index, onRemove }) => {
             <td>{stock.Reasoning}</td>
             <td>{stock.Resistance}</td>
             <td>{stock.Expectation}</td>
-            <td className="pattern-info-cell">{stock["Pattern Info"]}</td>
+            <td>{stock.Vol}</td>
 
             {/* כפתור מחיקה */}
             <td className="remove-btn" onClick={() => onRemove(stock)}>X</td>
