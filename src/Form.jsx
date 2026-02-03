@@ -21,14 +21,13 @@ function App() {
         4:"Phone in the wrong format.",
         5:"UserName TAKEN"};
     const navigate = useNavigate();
-    const [loading, setLoading] = React.useState(true); // מצב המתנה לבדיקת העוגייה
+    const [loading, setLoading] = React.useState(true);
     useEffect(()=>{
         if(loggedIn) {
             navigate("/StockDashboard");
         }
     }, [loggedIn,navigate]);
     useEffect(() => {
-        // 1. קריאת העוגייה (get ולא set)
         const token = Cookies.get("token");
         if (token) {
             axios.get("https://stock-scanner-backend-pt4o.onrender.com/check-session", { withCredentials: true })
@@ -37,7 +36,6 @@ function App() {
                     if (res.data!=null && res.data.status) {
                         setLoggedIn(true);
                     } else {
-                        // אם השרת אמר שהטוקן לא תקין, מנקים אותו
                         Cookies.remove("token");
                         setLoggedIn(false);
                     }
@@ -46,10 +44,9 @@ function App() {
                     setLoggedIn(false);
                 })
                 .finally(() => {
-                    setLoading(false); // עדכון אסינכרוני - בטוח לשימוש
+                    setLoading(false);
                 });
         } else {
-            // אין טוקן - עוברים למסך לוגין
             setLoading(false);
         }
     }, []);
